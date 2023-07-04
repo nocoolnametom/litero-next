@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { Litero, GetStoryOptions } from "./lib/litero";
 import { program } from "commander";
 import { readFileSync } from 'fs';
+import { Litero } from "./lib/litero";
+import { CLIOptions } from "./lib/storyoptions";
 
 // Load package.json for version number
 const { version } = JSON.parse(readFileSync("./package.json", "utf8"));  
@@ -16,9 +17,10 @@ program
   .option("-e, --format <format>", "Format to save the story as", "html")
   .option("-t, --template <template>", "Path to custom template file to use for the story")
   .option("-d, --stream", "Stream the story to stdout")
+  .option("-s, --series", "Download all stories in a series (cannot use classic layout)")
   .option("--verbose", "Print verbose output")
   .parse();
 
-const litero = new Litero(program.opts() as unknown as GetStoryOptions);
+const litero = new Litero(program.opts() as unknown as CLIOptions);
 
-litero.getStory(program.opts() as unknown as GetStoryOptions);
+litero.getStory(program.opts() as unknown as CLIOptions);
