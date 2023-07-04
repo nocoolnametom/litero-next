@@ -1,0 +1,5 @@
+__tests__
+src
+.prettierrc
+jest.config.jscoverage
+tsconfig.json

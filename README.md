@@ -1,14 +1,14 @@
-# Litero
+# Litero-Next
 
 Download stories from Literotica ([Literotica.com](http://literotica.com)) and save them locally as readable HTML web pages or beautifully formatted Text files, for later reading.
 
 
 ## Getting Started
 
-Make sure you have [nodejs](http://nodejs.org) installed. Given that, issuing 
+Make sure you have [nodejs](http://nodejs.org) installed. You must have a version greater than 18. Given that, issuing 
 
 ```sh
-npm install -g litero
+npm install -g litero-next
 ```
 
 should do the trick.
