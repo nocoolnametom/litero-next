@@ -291,7 +291,7 @@ export class Story {
 
 export function getSeriesUrl($: ReturnType<typeof load>) {
   const sidePanel = $(".page__aside.page__aside--float");
-  const readMoreSeriesPanel = sidePanel.find(".panel.z_r.z_R");
+  const readMoreSeriesPanel = sidePanel.find(".panel.z_r.z_R").first();
   const seriesLinkDiv = readMoreSeriesPanel.find(".z_S.z_fh").last();
   return seriesLinkDiv.find("a.z_t").attr("href") || "";
 }
