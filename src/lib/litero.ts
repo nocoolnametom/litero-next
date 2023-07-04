@@ -2,7 +2,7 @@ import fs from "fs";
 import { uniqueRandomArray, formatDateTime, replaceAll, saveToFile } from "./helpers";
 import path from "path";
 import userAgents from "./useragents.json";
-import { Story, StoryRequest } from "./story";
+import { Story } from "./story";
 import { StoryFormat, StoryFormats } from "./storyformats";
 import { CLIOptions } from "./storyoptions";
 import { Series } from "./series";
