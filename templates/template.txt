@@ -1,0 +1,7 @@
+%title%
+%posttitle%
+© by %author%
+
+%content%
+%postcontent%
+Story Downloaded from %storyurl%
