@@ -263,10 +263,14 @@ export class Litero {
     this._stream = stream ?? false;
     this._format = format ?? StoryFormat.HTML;
     this._template = "";
+    if (template) {
+      this._templatePath = fs.existsSync(path.join(process.cwd(), template)) ? path.join(process.cwd(), template) : "";
+    } else {
     this._templatePath =
-      template ?? fs.existsSync(path.join(templatesPath, `template.${this._format.toLocaleLowerCase()}`))
+      fs.existsSync(path.join(templatesPath, `template.${this._format.toLocaleLowerCase()}`))
         ? path.join(templatesPath, `template.${this._format.toLocaleLowerCase()}`)
         : "";
+    }
     this._pageIndicator = !nopages;
     this._story = new Story({});
   }
