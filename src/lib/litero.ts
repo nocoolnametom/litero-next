@@ -1,267 +1,78 @@
 import fs from "fs";
-import { load } from "cheerio";
-import { marked } from "marked";
-import { uniqueRandomArray, formatDateTime, replaceAll, saveToFile, arrayOfOtherPages } from "./helpers";
+import { uniqueRandomArray, formatDateTime, replaceAll, saveToFile } from "./helpers";
 import path from "path";
 import userAgents from "./useragents.json";
-import { JSDOM } from "jsdom";
-import DOMPurify from "dompurify";
-import Europa from "node-europa";
+import { Story, StoryRequest } from "./story";
+import { StoryFormat, StoryFormats } from "./storyformats";
+import { CLIOptions } from "./storyoptions";
+import { Series } from "./series";
 
 const getRandomUserAgent = uniqueRandomArray(userAgents);
-const sanitize = DOMPurify(new JSDOM("").window).sanitize;
-const parse = (html: string) => new Europa().convert(sanitize(html).replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, ""));
-marked.use({
-  mangle: false,
-  headerIds: false,
-});
 
 const WRITING_ATTEMPT_LOG_MESSAGE = 'Attempting to write to file: "%s1" as %s2';
 
-const templatesPath = path.join(__dirname, "../../templates");
+const templatesPath = path.join(__dirname, "../../templates")
 
-interface StoryRequest {
-  path: string;
-  host: string;
-  page: number;
-  headers: {
-    [header: string]: string;
-  };
-}
-
-enum StoryFormat {
-  HTML = "html",
-  TXT = "txt",
-  MD = "md",
-}
-
-export interface GetStoryOptions {
-  url?: string;
-  filename?: string;
-  format?: string;
-  version?: boolean;
-  help?: boolean;
-  verbose?: boolean;
-  classic?: boolean;
-  stream?: boolean;
-  template?: string;
-  nopages?: boolean;
-  pageindicator?: boolean;
-  logger?: Console;
-}
-
-const urlOptionToOptionObj = (url: string | GetStoryOptions) => {
+/**
+ * Ensures that the incoming arguments are always a {@link CLIOptions} object.
+ */
+const urlOptionToOptionObj = (url: string | CLIOptions) => {
   if (typeof url == "string") {
     return {
       url,
-    } as GetStoryOptions;
+    } as CLIOptions;
   }
   return url;
 };
 
-export class Story {
-  classic: boolean;
-  author: string;
-  authorURL: string;
-  filename: string;
-  format: `${StoryFormat}`;
-  nobr: boolean;
-  pages: string[];
-  request?: StoryRequest;
-  title: string;
-  totalPages: number;
-  pagesDone: number;
-  url: string;
+export const UrlRegex = /^(?:https?\:\/\/)?(www\.|german\.|spanish\.|french\.|dutch\.|italian\.|romanian\.|portuguese\.|classic\.)?(?:i\.)?(literotica\.com)(\/s(?:tories)?\/(?:showstory\.php\?(?:url|id)=)?([a-z-0-9]+))$/;
 
-  constructor({
-    classic,
-    title,
-    url,
-    author,
-    authorURL,
-    totalPages,
-    pages,
-    pagesDone,
-    format,
-    nobr,
-    request,
-    filename,
-  }: {
-    classic?: boolean;
-    author?: string;
-    authorURL?: string;
-    filename?: string;
-    format?: `${StoryFormat}`;
-    nobr?: boolean;
-    pages?: string[];
-    request?: StoryRequest;
-    stream?: boolean;
-    title?: string;
-    totalPages?: number;
-    pagesDone?: number;
-    url?: string;
-  }) {
-    this.classic = classic ?? false;
-    this.author = author || "";
-    this.authorURL = authorURL || "";
-    this.filename = filename || "";
-    this.format = format || StoryFormat.HTML;
-    this.nobr = nobr ?? true;
-    this.pages = pages || [];
-    this.request = request;
-    this.title = title || "";
-    this.totalPages = totalPages || 0;
-    this.pagesDone = pagesDone || 0;
-    this.url = url || "";
-  }
-
-  public get sep(): string {
-    return this.format != StoryFormat.HTML ? "\n" : this.nobr ? "</p><p>" : "<br />";
-  }
-
-  // A row of dashes to separate the title from the content for non-html formats
-  public get posttitle(): string {
-    return this.format == StoryFormat.HTML ? "" : "-".repeat(this.title.length);
-  }
-
-  buildContent = (pageIndicator = true) => {
-    const sep = this.format != StoryFormat.HTML ? "\n" : this.nobr ? "</p><p>" : "<br />";
-
-    const joinedContent = this.pages
-      .reduce((acc, page, i) => {
-        const fullPage = this.format != StoryFormat.HTML ? page : marked.parse(page);
-        if (i == 0) {
-          return [fullPage];
-        }
-        if (pageIndicator) {
-          return acc.concat(["", `Page ${i + 1}:`, `${"-".repeat(10)}`, "", fullPage]);
-        }
-        return acc.concat(["", fullPage]);
-      }, [] as string[])
-      .join(sep);
-    const content = this.format == StoryFormat.HTML ? joinedContent.replace(/(?:\r\b|\r|\n)/g, sep) : joinedContent;
-    return content;
-  };
-
-  requestPages = async (info: Function = () => {}) => {
-    await this.requestFirstPage(info);
-    await this.requestOtherPages(info);
-  };
-
-  requestFirstPage = async (info: Function = () => {}) => {
-    await this.requestPage(info)(1);
-  };
-
-  requestOtherPages = async (info: Function = () => {}) => {
-    if (this.totalPages <= 1) {
-      return;
-    }
-    const pagesToGet = arrayOfOtherPages(this.totalPages);
-    await Promise.all(pagesToGet.map(this.requestPage(info)));
-  };
-
-  getTotalPages = ($: ReturnType<typeof load>) => {
-    if (this.totalPages) {
-      return this.totalPages;
-    }
-
-    if (this.classic) {
-      return $(".b-pager-pages select option").length;
-    }
-
-    return parseInt($(".l_bH a.l_bJ").last().text(), 10) ?? 1;
-  };
-
-  requestPage =
-    (info: Function = () => {}) =>
-    async (pageNum = 1) => {
-      // If the story has no known pages, then we're requesting the first page
-      const firstPage = !this.totalPages;
-      const { path, host, headers } = this.request || ({} as StoryRequest);
-      if (!path || !host) {
-        console.error(`Looking up the story page ${pageNum} failed. Please try again later.`);
-        return;
-      }
-      let html: string;
-      try {
-        const url = firstPage ? `https://${host}${path}` : `https://${host}${path}?page=${pageNum}`;
-        info(`Requesting page - ${pageNum} - ${url}`);
-        const page = await fetch(url, { headers });
-        html = await page.text();
-      } catch (err) {
-        info("Error getting the story. Well, that sucks. Please try again later.");
-        info(err);
-        return;
-      }
-
-      const $ = load(html);
-
-      // Get the total pages from the classic page if we don't already know it
-      this.totalPages = this.getTotalPages($);
-
-      if (this.totalPages && firstPage) {
-        info(`This story has totally ${this.totalPages} Pages`);
-        this.pages = new Array(this.totalPages);
-      }
-
-      if (this.classic) {
-        this.processClassicStory(info, $, pageNum - 1);
-      } else {
-        this.processModernStory(info, $, pageNum - 1);
-      }
-    };
-
-  processClassicStory = (info: Function = () => {}, $: ReturnType<typeof load>, ind: number) => {
-    if (ind == 0) {
-      // Get the metadata of the story from the loaded first page - this is for the classic view!
-      this.title = this.title || $(".b-story-header h1").text().trim();
-      this.author = this.author || $(".b-story-user-y").eq(0).children().eq(1).text().trim();
-      this.authorURL = this.authorURL || $(".b-story-user-y").eq(0).children().eq(1).attr("href") || "";
-    }
-
-    this.pagesDone++;
-
-    info(`Got page ${ind + 1}; Total pages done so far : ${this.pagesDone}`);
-
-    this.pages[ind] = parse($(".b-story-body-x p").toString().trim());
-  };
-
-  processModernStory = (info: Function = () => {}, $: ReturnType<typeof load>, ind: number) => {
-    if (ind == 0) {
-      // Get the metadata of the story from the loaded first page - this is for the classic view!
-      this.title = this.title || $(".panel.clearfix.j_bl.j_bv h1").text().trim();
-      this.author = this.author || $(".clearfix.panel.y_eP.y_eQ").find(".y_eS>.y_eU").eq(0).text().trim();
-      this.authorURL = this.authorURL || $(".clearfix.panel.y_eP.y_eQ").find(".y_eS>.y_eU").eq(0).attr("href") || "";
-    }
-
-    this.pagesDone++;
-
-    info(`Got page ${ind + 1}; Total pages done so far : ${this.pagesDone}`);
-
-    this.pages[ind] = parse($(".panel.article.aa_eQ").find(".aa_ht>div").toString().trim());
-  };
-}
-
+/**
+ * Litero class
+ * 
+ * This class handles storing the story and series and writing it to a file.
+ * It does not handle downloading the story or parsing the response data, which
+ * is handled by the {@link Story} class.
+ * 
+ * @class
+ * @classdesc Litero class
+ * @param {CLIOptions} [options] - Options for the story
+ * @param {boolean} [options.verbose] - Whether to print verbose output
+ * @param {Console} [options.logger] - Logger to use for output
+ * @param {boolean} [options.stream] - Whether to stream the story to stdout
+ * @param {string} [options.format] - Format to save the story as
+ * @param {string} [options.template] - Path to custom template file to use for the story
+ * @param {boolean} [options.nopages] - Don't write page numbers in output
+ * @param {boolean} [options.pageindicator] - Whether to write page indicators in output
+ * @param {boolean} [options.classic] - Whether to use the classic website layout
+ * @param {boolean} [options.series] - Whether to download all stories in a series
+ * @param {string} [options.url] - URL of the story to download
+ * @param {string} [options.filename] - Filename to save the story as
+ */
 export class Litero {
   private _story: Story;
+  private _series?: Series;
   private _logger: Console;
   private _verbose: boolean;
   private _stream: boolean;
   private _format: string;
   private _template: string;
   private _templatePath: string;
+  private _filename: string;
   private _pageIndicator: boolean;
   private _userAgent: string = getRandomUserAgent();
+
   public get story(): Story {
-    const { sep, posttitle, ...storyCopy } = this._story;
-    return new Story(storyCopy);
+    // No public access to the internal story object
+    return this._story.clone();
   }
 
-  constructor({ verbose, logger, stream, template, format, nopages }: GetStoryOptions = {}) {
+  constructor({ verbose, logger, stream, template, format, nopages, filename }: CLIOptions = {}) {
     this._logger = logger ?? console;
     this._verbose = verbose ?? false;
     this._stream = stream ?? false;
     this._format = format ?? StoryFormat.HTML;
+    this._filename = filename ?? "";
     this._template = "";
     if (template) {
       this._templatePath = fs.existsSync(path.join(process.cwd(), template)) ? path.join(process.cwd(), template) : "";
@@ -275,64 +86,56 @@ export class Litero {
     this._story = new Story({});
   }
 
-  public getStory = async (args: string | GetStoryOptions) => {
+  public getStory = async (args: string | CLIOptions) => {
     const options = typeof args == "string" ? urlOptionToOptionObj(args) : args;
     options.classic = options.classic ?? false;
     options.format = options.format || StoryFormat.HTML;
     this._story = new Story({
       classic: options.classic,
       format: options.format as StoryFormat,
-      filename: options.filename,
       url: options.url,
     });
     if (!this.validateOptions(options)) {
       return;
     }
     this.info(`Getting story from ${this.story.url}`);
-    await this._story.requestPages(this.info);
+    const seriesUrl = await this._story.requestPages(this.info);
+    if (seriesUrl && options.series) {
+      this._series = new Series(this._story);
+      this.info(`Story is part of a series. Getting series from ${seriesUrl}`);
+      await this._series.requestSeries(this.info);
+    }
     this.info(`Finished downloading all ${this._story.totalPages} pages.`);
     await this.output(options.format as StoryFormat, this._pageIndicator);
   };
 
-  public validateOptions = (options: GetStoryOptions) => {
+  public validateOptions = (options: CLIOptions) => {
     if (!options.url) {
       return this.errorGettingStory("No URL Provided!");
     }
 
     this._story.url = options.url;
 
-    const url =
-      /^(?:https?\:\/\/)?(www\.|german\.|spanish\.|french\.|dutch\.|italian\.|romanian\.|portuguese\.|classic\.)?(?:i\.)?(literotica\.com)(\/s(?:tories)?\/(?:showstory\.php\?(?:url|id)=)?([a-z-0-9]+))$/.exec(
-        this.story.url
-      );
+    const url = UrlRegex.exec(this.story.url);
 
     if (!url) {
       return this.errorGettingStory("URL Provided was invalid.");
     }
 
-    this._story.request = this._story.request || ({} as StoryRequest);
-    this._story.request.path = url[3];
-    this._story.request.host = `${url[1] || ""}${url[2]}`;
-
-    if (options.classic || this._story.request.host.includes("classic")) {
+    if (options.classic || (url[1] || '').includes("classic")) {
+      if (options.series) {
+        return this.errorGettingStory("Cannot download series from classic layout!");
+      }
       this._story.classic = true;
-      this._story.request.host = this._story.request.host.replace(/^(www\.)?literotica\.com/gi, "classic.literotica.com");
-      this._story.request.headers = {
-        ...(this._story.request.headers || {}),
-        Cookie: `enable_classic=1; ${this._story.request.headers?.Cookie || ""}`,
-      };
     }
 
-    this._story.request.headers = {
-      ...(this._story.request.headers || {}),
-      "User-Agent": this._userAgent,
-    };
-
-    this._story.filename = this._story.filename || url[4];
+    if (!options.series) {
+      this._filename = this._filename || url[4];
+    }
 
     if (
       !Object.hasOwnProperty(`output${this.story.format}`) &&
-      !(Object.values(StoryFormat) as string[]).includes(options.format || "")
+      !(StoryFormats as string[]).includes(options.format || "")
     ) {
       this.errorGettingStory("Unknown Format provided in the arguments.");
       return false;
@@ -377,18 +180,24 @@ export class Litero {
   private output = async (requestedFormat?: `${StoryFormat}`, pageIndicator: boolean = true) => {
     await this.loadTemplates();
 
-    const content = this.story.buildContent(pageIndicator);
+    const content = this._series instanceof Series ? this._series.buildContent(pageIndicator) : this.story.buildContent(pageIndicator);
+    const title = this._series instanceof Series ? this._series.title ?? this.story.title : this.story.title;
+    const posttitle = this._series instanceof Series ? this._series.posttitle ?? this.story.posttitle : this.story.posttitle;
+    const author = this._series instanceof Series ? this._series.author ?? this.story.author : this.story.author;
+    const authorUrl = this._series instanceof Series ? this._series.authorUrl ?? this.story.authorUrl : this.story.authorUrl;
+    const storyUrl = this._series instanceof Series ? this._series.seriesUrl ?? this.story.url : this.story.url;
+    const theFilename = this._filename || (this._series instanceof Series ? this._series.firstStoryUrlTitle : this._filename);
 
-    this.info(WRITING_ATTEMPT_LOG_MESSAGE.replace("%s1", this.story.title).replace("%s2", this.story.filename));
+    this.info(WRITING_ATTEMPT_LOG_MESSAGE.replace("%s1", title).replace("%s2", theFilename));
 
     const replacementValues = {
-      "%title%": this.story.title,
-      "%posttitle%": requestedFormat == StoryFormat.HTML ? "" : this.story.posttitle,
-      "%author%": this.story.author,
-      "%authorurl%": this.story.authorURL,
+      "%title%": title,
+      "%posttitle%": requestedFormat == StoryFormat.HTML ? "" : posttitle,
+      "%author%": author,
+      "%authorurl%": authorUrl,
       "%content%": content,
-      "%postcontent%": requestedFormat == StoryFormat.HTML ? "" : this.story.posttitle,
-      "%storyurl%": this.story.url,
+      "%postcontent%": requestedFormat == StoryFormat.HTML ? "" : posttitle,
+      "%storyurl%": storyUrl,
     };
 
     const output = replaceAll(this._template, replacementValues);
@@ -401,7 +210,7 @@ export class Litero {
     }
 
     // Replace the file suffix with the requested format.
-    const filename = this.story.filename.replace(/(\.[a-z]+)?$/, `.${requestedFormat}`);
+    const filename = theFilename.replace(/(\.[a-z]+)?$/, `.${requestedFormat}`);
     await saveToFile(output, filename);
   };
 }
