@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { program } from "commander";
-import { readFileSync } from 'fs';
+import { readFileSync } from "fs";
+import { join } from "path";
 import { Litero } from "./lib/litero";
 import { CLIOptions } from "./lib/storyoptions";
 
 // Load package.json for version number
-const { version } = JSON.parse(readFileSync("./package.json", "utf8"));  
+const { version } = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8"));
 
 program
   .version(version)

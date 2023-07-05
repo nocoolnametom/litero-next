@@ -102,9 +102,11 @@ export class Story {
       authorUrl: this.authorUrl,
       format: this.format,
       pages: [...this.pages],
-      request: this.request ? {
-        ...(this.request || {}),
-        } : undefined,
+      request: this.request
+        ? {
+            ...(this.request || {}),
+          }
+        : undefined,
       title: this.title,
       totalPages: this.totalPages,
       pagesDone: this.pagesDone,
@@ -119,7 +121,7 @@ export class Story {
   buildContent = (pageIndicator = true, inSeries = false) => {
     const sep = this.sep;
     let header = "";
-  
+
     if (inSeries) {
       switch (this.format) {
         case StoryFormat.HTML:
@@ -152,10 +154,10 @@ export class Story {
     if (inSeries) {
       output.unshift(header);
     }
-    return output.join(`${sep+sep}`);
+    return output.join(`${sep + sep}`);
   };
 
-  parseUrlToRequest = (info: Function = () => { }) => {
+  parseUrlToRequest = (info: Function = () => {}) => {
     const url = UrlRegex.exec(this.url);
     if (!url) {
       const force = true;
@@ -179,7 +181,7 @@ export class Story {
     };
   };
 
-  requestPages = async (info: Function = () => { }) => {
+  requestPages = async (info: Function = () => {}) => {
     this.parseUrlToRequest(info);
     if (this.pages.length > 0) {
       // No need to look up a story a second time!
@@ -190,11 +192,11 @@ export class Story {
     return this.seriesUrl || undefined;
   };
 
-  requestFirstPage = async (info: Function = () => { }) => {
+  requestFirstPage = async (info: Function = () => {}) => {
     await this.requestPage(info)(1);
   };
 
-  requestOtherPages = async (info: Function = () => { }) => {
+  requestOtherPages = async (info: Function = () => {}) => {
     if (this.totalPages <= 1) {
       return;
     }
@@ -215,45 +217,45 @@ export class Story {
   };
 
   requestPage =
-    (info: Function = () => { }) =>
-      async (pageNum = 1) => {
-        // If the story has no known pages, then we're requesting the first page
-        const firstPage = !this.totalPages;
-        const { path, host, headers } = this.request || ({} as StoryRequest);
-        if (!path || !host) {
-          console.error(`Looking up the story page ${pageNum} failed. Please try again later.`);
-          return;
-        }
-        let html: string;
-        try {
-          const url = firstPage ? `https://${host}${path}` : `https://${host}${path}?page=${pageNum}`;
-          info(`Requesting page - ${pageNum} - ${url}`);
-          const page = await fetch(url, { headers });
-          html = await page.text();
-        } catch (err) {
-          info("Error getting the story. Well, that sucks. Please try again later.");
-          info(err);
-          return;
-        }
+    (info: Function = () => {}) =>
+    async (pageNum = 1) => {
+      // If the story has no known pages, then we're requesting the first page
+      const firstPage = !this.totalPages;
+      const { path, host, headers } = this.request || ({} as StoryRequest);
+      if (!path || !host) {
+        console.error(`Looking up the story page ${pageNum} failed. Please try again later.`);
+        return;
+      }
+      let html: string;
+      try {
+        const url = firstPage ? `https://${host}${path}` : `https://${host}${path}?page=${pageNum}`;
+        info(`Requesting page - ${pageNum} - ${url}`);
+        const page = await fetch(url, { headers });
+        html = await page.text();
+      } catch (err) {
+        info("Error getting the story. Well, that sucks. Please try again later.");
+        info(err);
+        return;
+      }
 
-        const $ = load(html);
+      const $ = load(html);
 
-        // Get the total pages from the classic page if we don't already know it
-        this.totalPages = this.getTotalPages($);
+      // Get the total pages from the classic page if we don't already know it
+      this.totalPages = this.getTotalPages($);
 
-        if (this.totalPages && firstPage) {
-          info(`This story has totally ${this.totalPages} Pages`);
-          this.pages = new Array(this.totalPages);
-        }
+      if (this.totalPages && firstPage) {
+        info(`This story has totally ${this.totalPages} Pages`);
+        this.pages = new Array(this.totalPages);
+      }
 
-        if (this.classic) {
-          this.processClassicStory(info, $, pageNum - 1);
-        } else {
-          this.processModernStory(info, $, pageNum - 1);
-        }
-      };
+      if (this.classic) {
+        this.processClassicStory(info, $, pageNum - 1);
+      } else {
+        this.processModernStory(info, $, pageNum - 1);
+      }
+    };
 
-  processClassicStory = (info: Function = () => { }, $: ReturnType<typeof load>, ind: number) => {
+  processClassicStory = (info: Function = () => {}, $: ReturnType<typeof load>, ind: number) => {
     if (ind == 0) {
       // Get the metadata of the story from the loaded first page - this is for the classic view!
       this.title = this.title || $(".b-story-header h1").text().trim();
@@ -268,7 +270,7 @@ export class Story {
     this.pages[ind] = parse($(".b-story-body-x p").toString().trim());
   };
 
-  processModernStory = (info: Function = () => { }, $: ReturnType<typeof load>, ind: number) => {
+  processModernStory = (info: Function = () => {}, $: ReturnType<typeof load>, ind: number) => {
     if (ind == 0) {
       // Get the metadata of the story from the loaded first page - this is for the classic view!
       this.title = this.title || $(".panel.clearfix.j_bl.j_bv h1").text().trim();

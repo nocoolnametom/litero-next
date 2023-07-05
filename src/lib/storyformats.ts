@@ -1,4 +1,3 @@
-
 export const enum StoryFormat {
   HTML = "html",
   TXT = "txt",

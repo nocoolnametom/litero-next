@@ -11,7 +11,7 @@ const getRandomUserAgent = uniqueRandomArray(userAgents);
 
 const WRITING_ATTEMPT_LOG_MESSAGE = 'Attempting to write to file: "%s1" as %s2';
 
-const templatesPath = path.join(__dirname, "../../templates")
+const templatesPath = path.join(__dirname, "../../templates");
 
 /**
  * Ensures that the incoming arguments are always a {@link CLIOptions} object.
@@ -25,15 +25,16 @@ const urlOptionToOptionObj = (url: string | CLIOptions) => {
   return url;
 };
 
-export const UrlRegex = /^(?:https?\:\/\/)?(www\.|german\.|spanish\.|french\.|dutch\.|italian\.|romanian\.|portuguese\.|classic\.)?(?:i\.)?(literotica\.com)(\/s(?:tories)?\/(?:showstory\.php\?(?:url|id)=)?([a-z-0-9]+))$/;
+export const UrlRegex =
+  /^(?:https?\:\/\/)?(www\.|german\.|spanish\.|french\.|dutch\.|italian\.|romanian\.|portuguese\.|classic\.)?(?:i\.)?(literotica\.com)(\/s(?:tories)?\/(?:showstory\.php\?(?:url|id)=)?([a-z-0-9]+))$/;
 
 /**
  * Litero class
- * 
+ *
  * This class handles storing the story and series and writing it to a file.
  * It does not handle downloading the story or parsing the response data, which
  * is handled by the {@link Story} class.
- * 
+ *
  * @class
  * @classdesc Litero class
  * @param {CLIOptions} [options] - Options for the story
@@ -77,8 +78,7 @@ export class Litero {
     if (template) {
       this._templatePath = fs.existsSync(path.join(process.cwd(), template)) ? path.join(process.cwd(), template) : "";
     } else {
-    this._templatePath =
-      fs.existsSync(path.join(templatesPath, `template.${this._format.toLocaleLowerCase()}`))
+      this._templatePath = fs.existsSync(path.join(templatesPath, `template.${this._format.toLocaleLowerCase()}`))
         ? path.join(templatesPath, `template.${this._format.toLocaleLowerCase()}`)
         : "";
     }
@@ -122,7 +122,7 @@ export class Litero {
       return this.errorGettingStory("URL Provided was invalid.");
     }
 
-    if (options.classic || (url[1] || '').includes("classic")) {
+    if (options.classic || (url[1] || "").includes("classic")) {
       if (options.series) {
         return this.errorGettingStory("Cannot download series from classic layout!");
       }
@@ -133,10 +133,7 @@ export class Litero {
       this._filename = this._filename || url[4];
     }
 
-    if (
-      !Object.hasOwnProperty(`output${this.story.format}`) &&
-      !(StoryFormats as string[]).includes(options.format || "")
-    ) {
+    if (!Object.hasOwnProperty(`output${this.story.format}`) && !(StoryFormats as string[]).includes(options.format || "")) {
       this.errorGettingStory("Unknown Format provided in the arguments.");
       return false;
     }
