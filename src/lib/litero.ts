@@ -1,13 +1,11 @@
 import fs from "fs";
-import { uniqueRandomArray, formatDateTime, replaceAll, saveToFile } from "./helpers";
+import { formatDateTime, replaceAll, saveToFile } from "./helpers";
 import path from "path";
-import userAgents from "./useragents.json";
 import { Story } from "./story";
 import { StoryFormat, StoryFormats } from "./storyformats";
 import { CLIOptions } from "./storyoptions";
 import { Series } from "./series";
 
-const getRandomUserAgent = uniqueRandomArray(userAgents);
 
 const WRITING_ATTEMPT_LOG_MESSAGE = 'Attempting to write to file: "%s1" as %s2';
 
@@ -27,6 +25,10 @@ const urlOptionToOptionObj = (url: string | CLIOptions) => {
 
 export const UrlRegex =
   /^(?:https?\:\/\/)?(www\.|german\.|spanish\.|french\.|dutch\.|italian\.|romanian\.|portuguese\.|classic\.)?(?:i\.)?(literotica\.com)(\/s(?:tories)?\/(?:showstory\.php\?(?:url|id)=)?([a-z-0-9]+))$/;
+
+// https://www.literotica.com/series/se/434268
+export const SeriesUrlRegex =
+  /^(?:https?\:\/\/)?(www\.|german\.|spanish\.|french\.|dutch\.|italian\.|romanian\.|portuguese\.|classic\.)?(?:i\.)?(literotica\.com)(\/series\/se\/([0-9]+))$/;
 
 /**
  * Litero class
@@ -61,7 +63,7 @@ export class Litero {
   private _templatePath: string;
   private _filename: string;
   private _pageIndicator: boolean;
-  private _userAgent: string = getRandomUserAgent();
+  private _seriesRequested: string;
 
   public get story(): Story {
     // No public access to the internal story object
@@ -84,9 +86,11 @@ export class Litero {
     }
     this._pageIndicator = !nopages;
     this._story = new Story({});
+    this._seriesRequested = "";
   }
 
   public getStory = async (args: string | CLIOptions) => {
+    let seriesUrl: string | undefined;
     const options = typeof args == "string" ? urlOptionToOptionObj(args) : args;
     options.classic = options.classic ?? false;
     options.format = options.format || StoryFormat.HTML;
@@ -98,10 +102,16 @@ export class Litero {
     if (!this.validateOptions(options)) {
       return;
     }
-    this.info(`Getting story from ${this.story.url}`);
-    const seriesUrl = await this._story.requestPages(this.info);
+    if (!this._seriesRequested) {
+      this.info(`Getting story from ${this.story.url}`);
+      seriesUrl = await this._story.requestPages(this.info);
+    } else {
+      seriesUrl = this._seriesRequested;
+      options.series = true;
+    }
     if (seriesUrl && options.series) {
       this._series = new Series(this._story);
+      this._series.seriesUrl = this._series.seriesUrl || this._seriesRequested;
       this.info(`Story is part of a series. Getting series from ${seriesUrl}`);
       await this._series.requestSeries(this.info);
     }
@@ -116,10 +126,17 @@ export class Litero {
 
     this._story.url = options.url;
 
-    const url = UrlRegex.exec(this.story.url);
+    let url = UrlRegex.exec(this.story.url);
+
+    const seriesUrl = SeriesUrlRegex.exec(this.story.url);
 
     if (!url) {
-      return this.errorGettingStory("URL Provided was invalid.");
+      if (!seriesUrl) {
+        return this.errorGettingStory("URL Provided was invalid.");
+      }
+      this._seriesRequested = options.url;
+      this._story.inSeries = true;
+      url = url || seriesUrl;
     }
 
     if (options.classic || (url[1] || "").includes("classic")) {
@@ -129,7 +146,7 @@ export class Litero {
       this._story.classic = true;
     }
 
-    if (!options.series) {
+    if (!options.series && !this._seriesRequested) {
       this._filename = this._filename || url[4];
     }
 

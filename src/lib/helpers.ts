@@ -1,7 +1,10 @@
 import fs from "fs";
+import userAgents from "./useragents.json";
 
 export const FILE_SUCCESS_FORMAT = "File was written to *%s*";
 export const FILE_ERROR_FORMAT = "Following error occurred while attempting to write the file: %s";
+
+export const getRandomUserAgent = uniqueRandomArray(userAgents);
 
 export function ireplaceAll(str: string, repl: { [search: string]: string | number }): string {
   var search = new RegExp(Object.keys(repl).join("|"), "gi");
