@@ -146,27 +146,26 @@
       </footer>
     </div>
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-  <!-- <script>window.jQuery || document.write('<script src="js/vendor/jquery-1.9.1.min.js"><\/script>')</script> -->
-  <script type="text/javascript">
-        jQuery( '<div id="switch-color-scheme" />' )
-                .append( '<a href="#" class="switch-color light" rel="light">Light</a>' )
-                .append( '<a href="#" class="switch-color dark" rel="dark">Dark</a>' )
-                .append( '<a href="#" class="switch-color sepia" rel="sepia">sepia</a>' )
-                .prependTo('body');
+    <script type="text/javascript">
+        const switchColorScheme = document.createElement("div")
+        switchColorScheme.id = "switch-color-scheme"
+        switchColorScheme.innerHTML = `
+                    <a href="#" class="switch-color light" rel="light">Light</a>
+                    <a href="#" class="switch-color dark" rel="dark">Dark</a>
+                    <a href="#" class="switch-color sepia" rel="sepia">sepia</a>`
+        document.body.prepend(switchColorScheme)
+        const browserTheme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.body.classList.add("js", browserTheme)
 
-        jQuery( document ).ready(function() {
-                jQuery( 'body' ).addClass( 'js light' );
-                jQuery( '#switch-color-scheme a').click( function( e ) {
-                        e.preventDefault();
-                        jQuery( 'body' )
-                                .removeClass('dark light sepia' )
-                                .addClass( jQuery( this ).attr('rel') );
-                });     
-
-        });
-
-  </script>
+        const theme = [...document.querySelectorAll(" #switch-color-scheme a")]
+        theme.forEach(el => {
+            el.addEventListener("click", ev => {
+                ev.preventDefault()
+                document.body.classList.remove("light", "dark", "sepia")
+                document.body.classList.add(el.getAttribute("rel"))
+            })
+        })
+    </script>
  </body>
         
 </html>
