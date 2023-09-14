@@ -202,7 +202,7 @@ export class Story {
       return;
     }
     const pagesToGet = arrayOfOtherPages(this.totalPages);
-    await Promise.all(pagesToGet.map(this.requestPage(info)));
+    await Promise.all(pagesToGet.map(this.requestPage(info).bind(this)));
   };
 
   getTotalPages = ($: ReturnType<typeof load>) => {
@@ -292,9 +292,31 @@ export class Story {
   };
 }
 
+/**
+ * Get the URL of the series that the story is part of, if any
+ * 
+ * This is a lookup based on the presence of a series icon instead of text
+ * so that it will work for international stories
+ */
 export function getSeriesUrl($: ReturnType<typeof load>) {
+  let seriesUrl = null as string | null;
   const sidePanel = $(".page__aside.page__aside--float");
-  const readMoreSeriesPanel = sidePanel.find(".panel.z_r.z_R").first();
-  const seriesLinkDiv = readMoreSeriesPanel.find(".z_S.z_fh").last();
-  return seriesLinkDiv.find("a.z_t").attr("href") || "";
+  const readMoreSeriesPanels = sidePanel.find(".panel.z_r.z_R");
+  // Loop over the panels, looking for the one with an icon for a series
+  readMoreSeriesPanels.each((i, el) => {
+    if (seriesUrl !== null) {
+      // If we already have a series URL, then we don't need to keep looking
+      return false;
+    }
+    const panel = $(el);
+    const seriesIcon = panel.find(".icon.icon-series-work-solid");
+    if (seriesIcon.length == 0) {
+      // This panel doesn't have a series icon, so skip it
+      return;
+    }
+    // This panel has a series icon, so get the link to the series from the last entry
+    const seriesLinkDiv = panel.find(".z_S.z_fh").last();
+    seriesUrl = seriesLinkDiv.find("a.z_t").attr("href") || seriesUrl;
+  });
+  return seriesUrl || '';
 }
