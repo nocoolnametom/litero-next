@@ -4,6 +4,7 @@
 _by %author%_
 
 %content%
+
 %postcontent%
 
 <!--Story Downloaded from %storyurl%-->
