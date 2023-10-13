@@ -112,7 +112,12 @@ export class Series {
       return story;
     });
 
-    await Promise.all(this._stories.map((story) => (story.pages.length == 0 ? story.requestPages(info) : new Promise<void>((resolve) => resolve()))));
+    // Getting stories iteratively rather than all at once since there's some error with the current references that causes
+    // each story to request the correct page number for subsequent pages BUT the initial URL is for the final chapter of the series!
+    for (let i = 0; i < this._stories.length; i++) {
+      const item = this._stories[i];
+      await item.requestPages(info);
+    }
   };
 
   buildContent(pageIndicator = true) {

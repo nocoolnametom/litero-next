@@ -1,12 +1,12 @@
 {
-  "extends": "@tsconfig/node18/tsconfig.json",
   "compilerOptions": {
     "target": "ES2018",
     "preserveConstEnums": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "moduleResolution": "NodeNext",
-    "types": ["jest", "node", "./src/types"],
+    "module": "NodeNext",
+    "types": ["jest", "node"],
     "rootDir": "./src",
     "outDir": "dist",
     "declaration": true,

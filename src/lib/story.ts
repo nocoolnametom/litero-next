@@ -105,7 +105,7 @@ export class Story {
       pages: [...this.pages],
       request: this.request
         ? {
-            ...(this.request || {}),
+            ...(this.request || {} as StoryRequest),
           }
         : undefined,
       title: this.title,
