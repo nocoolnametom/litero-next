@@ -9,7 +9,11 @@ import { UrlRegex } from "./litero";
 import { getRandomUserAgent } from "./helpers";
 
 const sanitize = DOMPurify(new JSDOM("").window).sanitize;
-const parse = (html: string) => new Europa().convert(sanitize(html).replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, ""));
+const parse = (html: string) => new Europa().convert(
+  sanitize(html)
+    .replace(/<em>(\s*)<\/em>/gi, "$1")
+    .replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, "")
+);
 marked.use({
   mangle: false,
   headerIds: false,

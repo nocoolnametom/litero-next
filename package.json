@@ -1,6 +1,6 @@
 {
   "name": "litero-next",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "Download stories from Literotica and save them locally as beautifully formatted Text or  HTML web pages for later reading. ",
   "main": "./dist/lib/litero.js",
   "types": "./dist/lib/litero.d.ts",
