@@ -28,7 +28,7 @@ export const UrlRegex =
 
 // https://www.literotica.com/series/se/434268
 export const SeriesUrlRegex =
-  /^(?:https?\:\/\/)?(www\.|german\.|spanish\.|french\.|dutch\.|italian\.|romanian\.|portuguese\.|classic\.)?(?:i\.)?(literotica\.com)(\/series\/se\/([0-9]+))$/;
+  /^(?:https?\:\/\/)?(www\.|german\.|spanish\.|french\.|dutch\.|italian\.|romanian\.|portuguese\.|classic\.)?(?:i\.)?(literotica\.com)(\/series\/se\/([-a-zA-Z0-9]+))$/;
 
 /**
  * Litero class
